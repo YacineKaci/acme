@@ -46,6 +46,7 @@ class DQNLearner(acme.Learner, tf2_savers.TFSaveable):
       target_network: snt.Module,
       discount: float,
       importance_sampling_exponent: float,
+      max_replay_size: int = 1_000_000,
       learning_rate: float,
       target_update_period: int,
       dataset: tf.data.Dataset,
@@ -66,6 +67,7 @@ class DQNLearner(acme.Learner, tf2_savers.TFSaveable):
       discount: discount to use for TD updates.
       importance_sampling_exponent: power to which importance weights are raised
         before normalizing.
+      max_replay_size: scale to which importance weights are devided before powering
       learning_rate: learning rate for the q-network update.
       target_update_period: number of learner steps to perform before updating
         the target networks.
@@ -108,6 +110,7 @@ class DQNLearner(acme.Learner, tf2_savers.TFSaveable):
     self._discount = discount
     self._target_update_period = target_update_period
     self._importance_sampling_exponent = importance_sampling_exponent
+    self._max_replay_size = max_replay_size
     self._max_abs_reward = max_abs_reward
     self._huber_loss_parameter = huber_loss_parameter
     if max_gradient_norm is None:
@@ -164,7 +167,7 @@ class DQNLearner(acme.Learner, tf2_savers.TFSaveable):
       loss = losses.huber(extra.td_error, self._huber_loss_parameter)
 
       # Get the importance weights.
-      importance_weights = 1. / probs  # [B]
+      importance_weights = 1. / (self._max_replay_size * probs)  # [B]
       importance_weights **= self._importance_sampling_exponent
       importance_weights /= tf.reduce_max(importance_weights)
 
